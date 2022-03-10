@@ -1,0 +1,23 @@
+{
+  "name": "TRADER",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@knicola/tdameritrade": "^0.6.0",
+    "discord.js": "^13.6.0",
+    "dotenv": "^14.3.2",
+    "express": "^4.17.2",
+    "finvizor": "^1.0.9",
+    "moment": "^2.29.1",
+    "mongodb": "^4.4.1",
+    "numeral": "^2.0.6",
+    "playwright": "^1.18.1",
+    "trading-calendar": "^1.1.1"
+  }
+}
