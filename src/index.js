@@ -27,18 +27,17 @@ const client = new ToastClient({
 const { MongoClient } = require("mongodb");
 const dbClient = new MongoClient(process.env.MONGO_URI);
 
-process.on('uncaughtException', function(err) {
-   console.log('Caught exception: ' + err);
+process.on("uncaughtException", function(err) {
+   console.log("Caught exception: " + err);
 });
 
 // Start
 (async () => {
     await dbClient.connect();
-    const db = dbClient.db('stocks');
+    const db = dbClient.db("stocks");
     client.stockDao = new StockDao(db);
     client.userDao = new UserDao(db);
 
-    require("./util/functions/charts");
     await client.start(process.env.TOKEN);
     await client.loadEvents();
     await client.loadCommands();

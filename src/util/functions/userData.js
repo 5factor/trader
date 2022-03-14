@@ -7,14 +7,14 @@ function round(x) {
     return parseInt(Number.parseFloat(x).toFixed(2));
 }
 
-async function addOption(client, userId, input, date, type, strike, amount) {
+async function addOption(client, account, userId, input, date, type, strike, amount) {
     const data = await getContract(input, date, type, strike);
     if (typeof data === "string") return data;
 
     const { symbol, underlying, description, bidPrice, bidSize, askPrice, askSize, lastPrice, totalVolume, delta, gamma, theta, vega, rho} = data;
     const userData = await client.userDao.get(userId);
-    const userOptions = userData.options || {};
-    const userCash = userData.stocks["$CASH"].amount;
+    const userOptions = userData[account].options || {};
+    const userCash = userData[account].stocks["$CASH"].amount;
 
     const costBasis = round((askPrice * 100) * amount);
     if (costBasis > userCash) return `Not enough cash to complete this order. You need $${round(costBasis - userCash)} more.`;
@@ -34,34 +34,33 @@ async function addOption(client, userId, input, date, type, strike, amount) {
             newAverage = round(newAverage);
         }
 
-        await client.userDao.addOption(userId, symbol, description, parseInt(newAmount), newAverage);
-        await client.userDao.addStock(userId, "$CASH", round(userCash - costBasis));
+        await client.userDao.addOption(userId, symbol, description, parseInt(newAmount), newAverage, null, account);
+        await client.userDao.addStock(userId, "$CASH", round(userCash - costBasis), 1, null, account);
 
         return { name: description, symbol, orderSize: amount, costPerShare: askPrice * 100, totalCost: costBasis, totalPosition: newAmount, newBalance: round(userCash - costBasis) };
     } else {
-        await client.userDao.addOption(userId, symbol, description, parseInt(amount), askPrice * 100);
-        await client.userDao.addStock(userId, "$CASH", round(userCash - costBasis));
+        await client.userDao.addOption(userId, symbol, description, parseInt(amount), askPrice * 100, null, account);
+        await client.userDao.addStock(userId, "$CASH", round(userCash - costBasis), 1, null, account);
 
         return { name: description, symbol, orderSize: amount, costPerShare: askPrice * 100, totalCost: costBasis, totalPosition: amount, newBalance: round(userCash - costBasis) };
     }
 }
 
-async function closeOption(client, userId, input, date, type, strike, amount) {
+async function closeOption(client, account, userId, input, date, type, strike, amount) {
     const data = await getContract(input, date, type, strike);
     const userData = await client.userDao.get(userId);
-    const userOptions = userData.options;
+    const userOptions = userData[account].options;
     const userPos = userOptions[`${input.toUpperCase()}_${date}${type}${strike}`];
-    console.log(userPos);
-    console.log(`${input.toUpperCase()}_${date}${type}${strike}`);
+
     if (typeof data === "string" && userPos && userPos.amount > 0) {
-        await client.userDao.addOption(userId, `${input.toUpperCase()}_${date}${type}${strike}`, 0, 0, null);
+        await client.userDao.addOption(userId, `${input.toUpperCase()}_${date}${type}${strike}`, 0, 0, null, null, account);
         return "The specified contracts have expired and are worthless.";
     }
 
     if (typeof data === "string") return data;
 
     const { symbol, underlying, description, bidPrice, bidSize, askPrice, askSize, lastPrice, totalVolume, delta, gamma, theta, vega, rho } = data;
-    const userCash = userData.stocks["$CASH"].amount;
+    const userCash = userData[account].stocks["$CASH"].amount;
 
     const curPosition = userOptions[symbol];
     if (amount > curPosition.amount) return `You cannot sell more contracts than you own. You own ${curPosition.amount} contracts.`;
@@ -73,26 +72,26 @@ async function closeOption(client, userId, input, date, type, strike, amount) {
     const totalValue = round((askPrice * 100) * amount);
 
     if ((curPosition.amount - amount) < 1) {
-        await client.userDao.addOption(userId, symbol, description, 0, 0, realized);
-        await client.userDao.addStock(userId, "$CASH", userCash + totalValue, 1, null);
+        await client.userDao.addOption(userId, symbol, description, 0, 0, realized, account);
+        await client.userDao.addStock(userId, "$CASH", userCash + totalValue, 1, null, account);
 
         return { name: description, symbol, orderSize: amount, costPerShare: (askPrice * 100), totalCost: totalValue, totalPosition: 0, realized: realized };
     } else {
-        await client.userDao.addOption(userId, symbol, description, curPosition.amount - amount, parseInt(curPosition.average), realized);
-        await client.userDao.addStock(userId, "$CASH", userCash + totalValue, 1, null);
+        await client.userDao.addOption(userId, symbol, description, curPosition.amount - amount, parseInt(curPosition.average), realized, account);
+        await client.userDao.addStock(userId, "$CASH", userCash + totalValue, 1, null, account);
 
         return { name: description, symbol, orderSize: amount, costPerShare: (askPrice * 100), totalCost: totalValue, totalPosition: curPosition.amount - amount, realized: realized };
     }
 }
 
-async function addPosition(client, userId, input, amount) {
+async function addPosition(client, account, userId, input, amount) {
     const data = await lookup(input);
     if (!data) return "An error occurred while attempting to fetch stock information. Did you input a valid ticker?";
 
     const { name, ticker, price } = data;
     const userData = await client.userDao.get(userId);
-    const userStocks = userData.stocks;
-    const userCash = userData.stocks["$CASH"].amount;
+    const userStocks = userData[account].stocks;
+    const userCash = userData[account].stocks["$CASH"].amount;
 
     const costBasis = round(price * amount);
     if (costBasis > userCash) return `Not enough cash to complete this order. You need $${round(costBasis - userCash)} more.`;
@@ -112,26 +111,26 @@ async function addPosition(client, userId, input, amount) {
             newAverage = round(newAverage);
         }
 
-        await client.userDao.addStock(userId, ticker, parseInt(newAmount), newAverage);
-        await client.userDao.addStock(userId, "$CASH", round(userCash - costBasis));
+        await client.userDao.addStock(userId, ticker, parseInt(newAmount), newAverage, null, account);
+        await client.userDao.addStock(userId, "$CASH", round(userCash - costBasis), 1, null, account);
 
         return { name, ticker, orderSize: amount, costPerShare: price, totalCost: costBasis, totalPosition: newAmount, newBalance: round(userCash - costBasis) };
     } else {
-        await client.userDao.addStock(userId, ticker, parseInt(amount), price);
-        await client.userDao.addStock(userId, "$CASH", round(userCash - costBasis));
+        await client.userDao.addStock(userId, ticker, parseInt(amount), price, null, account);
+        await client.userDao.addStock(userId, "$CASH", round(userCash - costBasis), 1, null, account);
 
         return { name, ticker, orderSize: amount, costPerShare: price, totalCost: costBasis, totalPosition: amount, newBalance: round(userCash - costBasis) };
     }
 }
 
-async function closePosition(client, userId, input, amount) {
+async function closePosition(client, account, userId, input, amount) {
     const data = await lookup(input);
     if (!data) return "An error occurred while attempting to fetch stock information. Did you input a valid ticker?";
 
     const { name, ticker, price } = data;
     const userData = await client.userDao.get(userId);
-    const userStocks = userData.stocks;
-    const userCash = userData.stocks["$CASH"].amount;
+    const userStocks = userData[account].stocks;
+    const userCash = userData[account].stocks["$CASH"].amount;
 
     const curPosition = userStocks[ticker];
     if (amount > curPosition.amount) return `You cannot sell more shares than you own. You own ${curPosition.amount} shares.`;
@@ -143,24 +142,24 @@ async function closePosition(client, userId, input, amount) {
     const totalValue = round(price * amount);
 
     if ((curPosition.amount - amount) < 1) {
-        await client.userDao.addStock(userId, ticker, 0, 0, realized);
-        await client.userDao.addStock(userId, "$CASH", userCash + totalValue, 1, null);
+        await client.userDao.addStock(userId, ticker, 0, 0, realized, account);
+        await client.userDao.addStock(userId, "$CASH", userCash + totalValue, 1, null, account);
 
         return { name, ticker, orderSize: amount, costPerShare: price, totalCost: totalValue, totalPosition: 0, realized: realized };
     } else {
-        await client.userDao.addStock(userId, ticker, curPosition.amount - amount, parseInt(curPosition.average), realized);
-        await client.userDao.addStock(userId, "$CASH", userCash + totalValue, 1, null);
+        await client.userDao.addStock(userId, ticker, curPosition.amount - amount, parseInt(curPosition.average), realized, account);
+        await client.userDao.addStock(userId, "$CASH", userCash + totalValue, 1, null, account);
 
         return { name, ticker, orderSize: amount, costPerShare: price, totalCost: totalValue, totalPosition: curPosition.amount - amount, realized: realized };
     }
 }
 
-async function calculateValue(client, userId) {
+async function calculateValue(client, userId, account = "primary") {
     const userData = await client.userDao.get(userId);
 
-    const userStocks = userData.stocks;
-    const userOptions = userData.options;
-    const userCash = userData.stocks["$CASH"].amount;
+    const userStocks = userData[account].stocks;
+    const userOptions = userData[account].options;
+    const userCash = userData[account].stocks["$CASH"].amount;
     let totalValue = parseInt(userCash);
 
     if (userStocks) {
@@ -196,20 +195,20 @@ async function calculateValue(client, userId) {
     return round(totalValue);
 }
 
-async function updateValues(client) {
+async function updateValues(client, account = "primary") {
     const allUsers = await client.userDao.find({});
 
     for (const { _id } of allUsers) {
         const newValue = await calculateValue(client, _id);
-        await client.userDao.addHistory(_id, newValue);
-        await client.userDao.setValue(_id, newValue);
+        await client.userDao.addHistory(_id, newValue, account);
+        await client.userDao.setValue(_id, account, newValue);
     }
 }
 
 async function updateLeaderboard(client) {
     const cursor = await client.userDao.getCursor({});
     const result = await cursor
-        .sort({ value: 1 })
+        .sort({ [`primary.value`]: 1 })
         .limit(10)
         .toArray();
 

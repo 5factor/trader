@@ -11,7 +11,7 @@ module.exports = {
         },
         secondary: {
             value: 0,
-            stocks: { $CASH: { amount: 100_000, average: 1 } },
+            stocks: { $CASH: { amount: 1_000_000, average: 1 } },
             options: {},
             futures: {},
             history: [],
