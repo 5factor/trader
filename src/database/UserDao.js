@@ -1,17 +1,13 @@
+const config = require("../config");
+
 module.exports = class UserDao {
     constructor(db) {
-        this.col = db.collection('users');
+        this.col = db.collection("users");
         this.cache = new Map();
     }
 
     async create(id) {
-        return this.insert({
-            _id: id,
-            value: 0,
-            stocks: { $CASH: { amount: 100_000, average: 1 } },
-            options: {},
-            history: []
-        });
+        return this.insert(config.defaultData(id));
     }
 
     async update(_id, data = {}) {
@@ -50,48 +46,48 @@ module.exports = class UserDao {
         return user;
     }
 
-    async getValue(id) {
+    async getValue(id, account = "primary") {
         return this.getCached(id)
-            .then(user => user.value);
+            .then(user => user[account].value);
     }
 
-    async setValue(id, value) {
-        return this.col.updateOne({ _id: id }, { $set: { value } });
+    async setValue(id, account = "primary", value) {
+        return this.col.updateOne({ _id: id }, { $set: { [`${account}.value`]: value } });
     }
 
-    async getStocks(id) {
+    async getStocks(id, account = "primary") {
         return this.getCached(id)
-            .then(user => user.stocks);
+            .then(user => user[account].stocks);
     }
 
-    async addOption(id, ticker, description, amount, average, realized) {
-        return this.col.updateOne({ _id: id }, { $set: { [`options.${ticker}`]: { amount: amount, description: description, average: average, realized: realized } } });
+    async addOption(id, ticker, description, amount, average, realized, account = "primary") {
+        return this.col.updateOne({ _id: id }, { $set: { [`${account}.options.${ticker}`]: { amount: amount, description: description, average: average, realized: realized } } });
     }
 
-    async addStock(id, ticker, amount, average, realized) {
-        return this.col.updateOne({ _id: id }, { $set: { [`stocks.${ticker}`]: { amount: amount, average: average, realized: realized } } });
+    async addStock(id, ticker, amount, average, realized, account = "primary") {
+        return this.col.updateOne({ _id: id }, { $set: { [`${account}.stocks.${ticker}`]: { amount: amount, average: average, realized: realized } } });
     }
 
-    async setStocks(id, stocks) {
-        return this.col.updateOne({ _id: id }, { stocks });
+    async setStocks(id, stocks, account = "primary") {
+        return this.col.updateOne({ _id: id }, { [`${account}.stocks`]: stocks });
     }
 
-    async getHistory(id) {
+    async getHistory(id, account = "primary") {
         return this.getCached(id)
-            .then(user => user.history);
+            .then(user => user[account].history);
     }
 
-    async setHistory(id, history) {
-        return this.col.updateOne({ _id: id }, { $set: { history } });
+    async setHistory(id, history, account = "primary") {
+        return this.col.updateOne({ _id: id }, { $set: { [`${account}.history`]: history } });
     }
 
-    async addHistory(id, value) {
-        let history = await this.getHistory(id);
+    async addHistory(id, value, account = "primary") {
+        let history = await this.getHistory(id, account);
         history.unshift(value);
         if (history.length > 96) { // 24H / 15M = 96 units
             history = history.slice(0, 96);
         }
-        return this.setHistory(id, history);
+        return this.setHistory(id, history, account);
     }
 
     resetCache() {
