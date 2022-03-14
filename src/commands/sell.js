@@ -140,7 +140,7 @@ command.run = async function(client, interaction) {
 		}
 
 		case "option": {
-			if (!ny.isTradingNow()) return interaction.reply({ content: "Options can only be traded while the NYSE is open.", ephemeral: true });
+			if (!ny.isTradingNow()) return interaction.followUp({ content: "Options can only be traded while the NYSE is open.", ephemeral: true });
 
 			if (day.toString().length === 1) day = `0${day}`;
 
