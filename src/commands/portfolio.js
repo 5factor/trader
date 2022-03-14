@@ -12,6 +12,13 @@ const command = new Command({
     description: "View your portfolio",
     options: [
         {
+            "type": 3,
+            "name": "account",
+            "description": "Main account or custom account",
+            "choices": [{ name: "Main Account", value: "primary" }, { name: "Custom Account", value: "secondary" }],
+            "required": false
+        },
+        {
             "type": 5,
             "name": "expanded",
             "description": "view expanded portfolio",
@@ -21,19 +28,20 @@ const command = new Command({
 });
 
 command.run = async function (client, interaction) {
+    const account = interaction.options.getString("account") || "primary";
     const expanded = interaction.options.getBoolean("expanded");
 
     await interaction.reply("Attempting to retrieve information...", { ephemeral: true });
 
     const userData = await client.userDao.get(interaction.user.id);
-    const totalValue = await calculateValue(client, interaction.user.id);
+    const totalValue = await calculateValue(client, interaction.user.id, account);
 
-    const userCash = userData.stocks["$CASH"].amount;
-    const userStocks = userData.stocks;
-    const userOptions = userData.options;
-	const history = userData.history;
+    const userCash = userData[account].stocks["$CASH"].amount;
+    const userStocks = userData[account].stocks;
+    const userOptions = userData[account].options;
+	const history = userData[account].history;
 
-	const [profit, percentage] = [round(totalValue - 100_000), round(((totalValue - 100_000) / 100_000) * 100)];
+	const [profit, percentage] = [round(totalValue - (account === "primary" ? 100_000 : 1_000_000)), round(((totalValue - (account === "primary" ? 100_000 : 1_000_000)) / (account === "primary" ? 100_000 : 1_000_000)) * 100)];
 	let [dayProfit, dayPercentage] = ["NA", "NA"];
 
 	if (history) {

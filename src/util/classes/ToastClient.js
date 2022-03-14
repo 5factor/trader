@@ -25,12 +25,15 @@ class ToastClient extends Client {
 			const command = require("../../" + file);
 
 			this.commands.set(command.name, command);
-			await this.application.commands.create({
+
+			const cmd = await this.application.commands.create({
 				name: command.name,
 				description: command.description,
 				options: command.options
 			})
 				.catch(console.log);
+
+			console.log(`Loaded '${command.name}' (${cmd.id})`);
 		}
 	}
 
