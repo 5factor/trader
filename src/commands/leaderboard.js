@@ -27,8 +27,11 @@ command.run = async function(client, interaction) {
 				.catch(() => null);
 		}
 
-		const value = doc.value || 0;
-		const cash = doc.stocks["$CASH"].amount || 0;
+		const trades = doc.primary.trades || 0;
+		const value = doc.primary.value || 0;
+		const cash = doc.primary.stocks["$CASH"].amount || 0;
+
+		if (trades < 1) continue;
 
 		string += `${icons[place] ? icons[place] : ""} ${user ? user.tag : "Unknown"}\n↳ Value: **${numeral(value).format("0.0a").toString()}** | Cash: **${numeral(cash).format("0.0a").toString()}**\n\n`;
 		place++;

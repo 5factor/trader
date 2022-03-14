@@ -135,6 +135,7 @@ command.run = async function(client, interaction) {
 				]
 			});
 
+			await client.userDao.update(interaction.user.id, { [`${account}.trades`]: 1 });
 			return interaction.followUp({ embeds: [e] });
 		}
 
@@ -165,6 +166,7 @@ command.run = async function(client, interaction) {
 				]
 			});
 
+			await client.userDao.update(interaction.user.id, { [`${account}.trades`]: 1 });
 			return interaction.followUp({ embeds: [e] });
 		}
 	}
